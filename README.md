@@ -1,68 +1,81 @@
-# Welcome to IceBrAIker! ❄️🤖
+# IceBrAIker
 
-IceBrAIker is a cutting-edge generative AI application designed to revolutionize networking. Built with a modern tech stack, including React, Typescript, Next.js, TailwindCSS, Python, Flask, LangChain, Vercel, and Render, IceBrAIker provides a seamless and intuitive user experience.
+IceBrAIker is a networking conversation-starter prototype with a React / Next.js
+frontend and a Flask API.
 
-## Overview
+## What works today
 
-IceBrAIker helps you network smarter by generating comprehensive, personalized profiles of individuals you wish to connect with. Simply input a name, click "Do your magic," and let IceBrAIker do the rest!
+- Responsive, accessible dark-mode conversation studio.
+- An **offline fictional example**, built into the frontend. No scraping,
+  authentication, model keys or API server are needed for this sample.
+- A Flask `GET /demo` endpoint returning the same kind of explicitly synthetic
+  example for API consumers.
+- A Flask `POST /process` integration boundary with input validation,
+  error responses and isolated regression tests.
+- Optional, **legacy** LangChain/LinkedIn-style research integration. This path
+  still depends on external providers and has not been verified end to end
+  against current provider APIs.
 
-![IceBrAIker Input Screenshot](https://github.com/user-attachments/assets/029e5b06-a929-43d1-9b99-bfc9a58d751d)
+This is an MVP demonstration, **not** a validated production social research
+service. The fictional profile is never presented as a real individual.
 
-With a single click, IceBrAIker generates a profile picture and a detailed view of the person’s skillset and traits, making it easier to break the ice and connect meaningfully.
+## Run the offline frontend
 
-![IceBrAIker Output Screenshot](https://github.com/user-attachments/assets/12a342c7-f738-48a7-9544-8905083deeb8)
+With Node.js 22 and PowerShell:
 
-## Features
+```powershell
+git clone https://github.com/rainrunner20/IceBrAIker.git
+cd IceBrAIker/my-nextjs-app
+npm ci
+npm run dev
+```
 
-- **Generative AI**: Leverage state-of-the-art AI to create detailed profiles.
-- **User-Friendly Interface**: Intuitive and easy-to-use with a single input field and action button.
-- **Real-Time Processing**: Get instant results with a click.
+Open http://localhost:3000 and choose **Try fictional example**.
 
-## Upcoming Features 🚀
+## Optional Flask API
 
-- **User Profiles**: Create user profiles to save favorite contacts.
-- **Advanced Filtering**: Filter favorited profiles by shared interests using PostgreSQL.
-- **More Information**: Currently, the agent is only trained with LinkedIn profiles. Might use additional Reddit and/or Twitter data for scraping.
+```powershell
+cd IceBrAIker/flask-backend
+py -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements-api-test.txt
+.\.venv\Scripts\python app.py
+```
 
-## Tech Stack
+The Flask server exposes `GET http://127.0.0.1:5000/health` and
+`GET http://127.0.0.1:5000/demo` without external credentials.
 
-- **Frontend**: React, Typescript, Next.js, TailwindCSS
-- **Backend**: Python, Flask, LangChain
-- **Deployment**: Vercel, Render
+To enable real profile research, install the separate production dependencies,
+configure any required provider credentials **outside Git**, and set
+`NEXT_PUBLIC_API_URL=http://127.0.0.1:5000` in
+`my-nextjs-app/.env.local`. This path is unverified, depends on third-party
+data sources, and must not be represented as production-ready. Validate
+permission, privacy, provider compliance and data quality before using
+real-person information.
 
-## Getting Started
+## Tests and CI
 
-1. **Clone the repository**:
-    ```bash
-    git clone https://github.com/Hackerdude374/IceBrAIker.git
-    cd IceBrAIker/my-nextjs-app
-    ```
+```powershell
+cd flask-backend
+python -m unittest discover -s tests -v
+cd ../my-nextjs-app
+npm ci
+npm run build
+```
 
-2. **Install dependencies**:
-    ```bash
-    npm install
-    ```
+The pull request runs Flask tests on Python 3.11/3.12 and a separate
+Next.js build. A successful build does not establish that the legacy
+scraping/model integration works or that a production domain is deployed.
 
-3. **Run the development server**:
-    ```bash
-    npm run dev
-    ```
+## Current roadmap
 
-4. **Set up the backend**:
-    Follow the instructions in the backend directory to set up Flask and LangChain.
-   ```bash
-   cd flask-backend
-   python app.py
-   ```
+- [x] Input validation and stable Flask API error contract
+- [x] Synthetic backend/demo and offline frontend fallback
+- [x] Typed browser responses, error states, mobile-friendly dark UI
+- [ ] Modernize and verify permitted provider integrations
+- [ ] Implement and test authentication, saved profiles, and persistence
+- [ ] Add real deployment smoke tests and monitoring
+- [ ] Audit privacy, bias and data provenance in generated profiles
 
-## Contribution
-
-We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
-
-## License
-
-IceBrAIker is licensed under the [MIT License](LICENSE).
-
-## Contact
-
-For any inquiries or feedback, please reach out to us at [contact@icebraiker.com](mailto:contact@icebraiker.com).
+No database-backed favorites, RAG pipeline, DistilBERT matching, or benchmarked
+accuracy improvements are claimed as implemented. See
+[API documentation](flask-backend/API_CONTRACT.md) for limitations.
