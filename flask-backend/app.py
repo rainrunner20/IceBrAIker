@@ -1,70 +1,74 @@
-# from flask import Flask, render_template, request, jsonify
-# from dotenv import load_dotenv
+"""HTTP boundary for profile summaries. External providers load only on a request."""
 
-# from ice_breaker import ice_break_with
+import os
+from collections.abc import Callable
 
-# # Load environment variables from the .env file
-# load_dotenv()
-
-# # Create a new Flask web application
-# app = Flask(__name__)
-
-# # Define a route for the home page
-# @app.route("/")
-# def index():
-#     # Render the 'index.html' template when someone visits the home page
-#     return render_template("index.html")
-
-# # Define a route to process form submissions
-# @app.route("/process", methods=["POST"])
-# def process():
-#     # Get the name from the form submission
-#     name = request.form["name"]
-#     # Use the ice_break_with function to get the summary, interests, ice breakers, and profile picture URL
-#     summary_and_facts, interests, ice_breakers, profile_pic_url = ice_break_with(name=name)
-    
-#     # Return the results as a JSON response
-#     return jsonify(
-#         {
-#             "summary_and_facts": summary_and_facts.to_dict(),  # Convert summary to a dictionary
-#             "interests": interests.to_dict(),  # Convert interests to a dictionary
-#             "ice_breakers": ice_breakers.to_dict(),  # Convert ice breakers to a dictionary
-#             "picture_url": profile_pic_url,  # Include the profile picture URL
-#         }
-#     )
-
-# # Run the web application when this script is executed
-# if __name__ == "__main__":
-#     # Start the web server on all network interfaces and enable debug mode
-#     app.run(host="0.0.0.0", debug=True)
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-from dotenv import load_dotenv
-from ice_breaker import ice_break_with
+from werkzeug.exceptions import RequestEntityTooLarge
 
-load_dotenv()
-
-app = Flask(__name__)
-CORS(app)  # Enable CORS
+from validation import normalize_profile_name
 
 
-@app.route("/")
-def home():
-    return jsonify(message="Welcome to IceBrAIker API!")
+def _generate_profile(name: str):
+    # Keep provider imports out of app startup so health checks and tests are offline.
+    from ice_breaker import ice_break_with
 
-@app.route("/process", methods=["POST"])
-def process():
-    data = request.get_json()
-    name = data.get("name")
-    summary_and_facts, interests, ice_breakers, profile_pic_url = ice_break_with(name=name)
-    return jsonify(
-        {
-            "summary_and_facts": summary_and_facts.to_dict(),
-            "interests": interests.to_dict(),
-            "ice_breakers": ice_breakers.to_dict(),
-            "picture_url": profile_pic_url,
-        }
-    )
+    return ice_break_with(name=name)
+
+
+def create_app(processor: Callable | None = None) -> Flask:
+    app = Flask(__name__)
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+
+    allowed_origins = [
+        origin.strip()
+        for origin in os.getenv("ICEBRAIKER_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
+    ]
+    CORS(app, resources={r"/process": {"origins": allowed_origins}})
+    generate = processor if processor is not None else _generate_profile
+
+    @app.get("/health")
+    def health():
+        # A liveness check; provider credentials and availability are checked elsewhere.
+        return jsonify(status="ok")
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def body_too_large(_error):
+        return jsonify(error="Request body is too large"), 413
+
+    @app.post("/process")
+    def process():
+        if not request.is_json:
+            return jsonify(error="Content-Type must be application/json"), 415
+
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify(error="Request body must be a JSON object"), 400
+
+        try:
+            name = normalize_profile_name(payload.get("name"))
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+
+        try:
+            summary, interests, ice_breakers, picture_url = generate(name)
+            return jsonify(
+                summary_and_facts=summary.to_dict(),
+                interests=interests.to_dict(),
+                ice_breakers=ice_breakers.to_dict(),
+                picture_url=picture_url,
+            )
+        except Exception:
+            # Avoid exposing provider failures, API keys, or personal profile data.
+            app.logger.exception("Profile generation failed")
+            return jsonify(error="Profile generation is temporarily unavailable"), 502
+
+    return app
+
+
+app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)
