@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { getFictionalDemo, getIceBreakerData, ProfileData } from '../services/api';
 
@@ -47,10 +48,10 @@ export default function Home() {
           <div className="absolute -left-48 top-[500px] h-[450px] w-[450px] rounded-full bg-teal-400/10 blur-3xl" />
         </div>
         <header className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-8">
-          <a href="/" className="flex items-center gap-3 text-xl font-bold tracking-tight">
+          <Link href="/" className="flex items-center gap-3 text-xl font-bold tracking-tight">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-300/30 bg-teal-300/10 text-2xl text-teal-200">❄</span>
             IceBrAIker
-          </a>
+          </Link>
           <span className="hidden rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[.2em] text-slate-400 sm:block">
             Networking intelligence / MVP
           </span>
