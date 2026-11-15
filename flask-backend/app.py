@@ -8,6 +8,7 @@ from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from validation import normalize_profile_name
+from demo import sample_profile
 
 
 def _generate_profile(name: str):
@@ -26,7 +27,7 @@ def create_app(processor: Callable | None = None) -> Flask:
         for origin in os.getenv("ICEBRAIKER_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
         if origin.strip()
     ]
-    CORS(app, resources={r"/process": {"origins": allowed_origins}})
+    CORS(app, resources={r"/(process|demo)": {"origins": allowed_origins}})
     generate = processor if processor is not None else _generate_profile
 
     @app.get("/health")
@@ -37,6 +38,11 @@ def create_app(processor: Callable | None = None) -> Flask:
     @app.errorhandler(RequestEntityTooLarge)
     def body_too_large(_error):
         return jsonify(error="Request body is too large"), 413
+
+    @app.get("/demo")
+    def demo():
+        # The demo deliberately describes a fictional person, never the supplied name.
+        return jsonify(sample_profile())
 
     @app.post("/process")
     def process():

@@ -95,5 +95,27 @@ class ApiTests(unittest.TestCase):
         self.assertNotIn("secret", response.get_data(as_text=True))
 
 
+
+class DemoTests(unittest.TestCase):
+    def setUp(self):
+        def unavailable_provider(_name):
+            raise RuntimeError("Provider must never run for a demo")
+
+        self.client = create_app(processor=unavailable_provider).test_client()
+
+    def test_demo_is_fictional_and_works_without_credentials(self):
+        response = self.client.get("/demo")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["source"], "synthetic_demo")
+        self.assertIn("fictional", response.json["display_name"])
+        self.assertEqual(len(response.json["ice_breakers"]["ice_breakers"]), 2)
+        self.assertIsNone(response.json["picture_url"])
+
+    def test_demo_respects_allowed_browser_origins(self):
+        allowed = self.client.get("/demo", headers={"Origin": "http://localhost:3000"})
+        denied = self.client.get("/demo", headers={"Origin": "https://untrusted.example"})
+        self.assertEqual(allowed.headers.get("Access-Control-Allow-Origin"), "http://localhost:3000")
+        self.assertIsNone(denied.headers.get("Access-Control-Allow-Origin"))
+
 if __name__ == "__main__":
     unittest.main()
